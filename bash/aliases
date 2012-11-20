@@ -1,0 +1,53 @@
+
+
+
+#rails
+alias sublime='sublime_text'
+alias z='zeus'
+alias rs='rails server'
+alias ss='./script/server'
+alias sg='./script/generate'
+alias rg='rails generate' 
+alias r='bundle exec rake'
+alias rr='rake release'
+alias rdm='bundle exec rake db:migrate && bundle exec rake db:test:prepare'
+#gem files
+alias gi='gem install'
+
+#rvm
+
+alias rvm187='rvm use 1.8.7'
+alias rvm193='rvm use 1.9.3'
+
+#adding aliases for bundle
+alias be='bundle exec'
+alias bi='bundle install'
+alias bu='bundle update'
+
+#rubygems
+alias gi='gem install'
+alias gup='gem update'
+alias gun='gem uninstall'
+
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# git
+alias g="git status"
+alias gl='git smart-log -n 10'
+alias gpl='git smart-pull'
+alias gps='git push'
+alias gc='git commit'
+alias gch='git checkout'
+alias ga='git add'
+alias gb='git branch'
+alias gs='git stash'
+alias gsp='git stash pop'
+alias gm='git merge'
+alias gr='git rebase'
+
+alias ..='cd ..'
+alias sh="show_history"
+alias ea="edit_alias"
