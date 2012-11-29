@@ -23,7 +23,7 @@ function edit_alias {
   done
   DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-  subl -n -w $DIR/aliases && . $DIR/aliases
+  vim $DIR/aliases && . $DIR/aliases
 }
 function rvm_version {
   local gemset=$(echo $GEM_HOME | awk -F'@' '{print $2}')

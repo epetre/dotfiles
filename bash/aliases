@@ -1,9 +1,15 @@
 
+PATH=$PATH:/usr/lib/Sublime\ Text\ 2/
 
+#gems
+alias cs='config-store'
+
+#heoku
+alias hmo='heroku maintenance:on'
+alias hmoff='heroku maintenance:off'
 
 #rails
 alias sublime='sublime_text'
-alias z='zeus'
 alias rs='rails server'
 alias ss='./script/server'
 alias sg='./script/generate'
@@ -11,6 +17,9 @@ alias rg='rails generate'
 alias r='bundle exec rake'
 alias rr='rake release'
 alias rdm='bundle exec rake db:migrate && bundle exec rake db:test:prepare'
+alias rc='rails console'
+alias z='zeus'
+
 #gem files
 alias gi='gem install'
 
@@ -39,6 +48,7 @@ alias g="git status"
 alias gl='git smart-log -n 10'
 alias gpl='git smart-pull'
 alias gps='git push'
+alias gpsh='git push heroku master'
 alias gc='git commit'
 alias gch='git checkout'
 alias ga='git add'
