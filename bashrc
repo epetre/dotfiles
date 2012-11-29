@@ -9,7 +9,11 @@ done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 source $DIR/bash/env
-source $DIR/bash/secret_env
+
+if [ -f $DIR/bash/secret_env ]
+then
+ source $DIR/bash/secret_env
+fi 
 source $DIR/bash/config
 source $DIR/bash/aliases
 
