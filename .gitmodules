@@ -4,3 +4,24 @@
 [submodule "vim/bundle/ScrollColors"]
 	path = vim/bundle/ScrollColors
 	url = git@github.com:vim-scripts/ScrollColors.git
+[submodule "vim/bundle/TabBar"]
+	path = vim/bundle/TabBar
+	url = git@github.com:vim-scripts/TabBar.git
+[submodule "vim/bundle/snipmate-snippets"]
+	path = vim/bundle/snipmate-snippets
+	url = git@github.com:scrooloose/snipmate-snippets.git
+[submodule "vim/bundle/ctrp.vim"]
+	path = vim/bundle/ctrp.vim
+	url = git@github.com:kien/ctrlp.vim.git
+[submodule "vim-rails"]
+	path = vim-rails
+	url = git@github.com:tpope/vim-rails.git
+[submodule "vim/bundle/vim-ruby"]
+	path = vim/bundle/vim-ruby
+	url = git@github.com:vim-ruby/vim-ruby.git
+[submodule "vim/bundle/vim-rails"]
+	path = vim/bundle/vim-rails
+	url = git@github.com:tpope/vim-rails.git
+[submodule "vim/bundle/snipmate.vim"]
+	path = vim/bundle/snipmate.vim
+	url = git@github.com:msanders/snipmate.vim.git
