@@ -29,4 +29,8 @@ load_project_config () {
   fi
 }
 
+ff (){
+ grep -H -r "$@" ./ --exclude=*.{git,log} --exclude-dir=\.git --exclude-dir=tmp 
+}
+
 load_project_config

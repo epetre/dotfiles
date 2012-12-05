@@ -19,3 +19,12 @@
 [submodule "vim/bundle/snipmate.vim"]
 	path = vim/bundle/snipmate.vim
 	url = git@github.com:msanders/snipmate.vim.git
+[submodule "vim/bundle/AutoComplPop"]
+	path = vim/bundle/AutoComplPop
+	url = git@github.com:vim-scripts/AutoComplPop.git
+[submodule "vim/bundle/taglist"]
+	path = vim/bundle/taglist
+	url = git@github.com:vim-scripts/taglist.vim.git
+[submodule "vim/bundle/greplace"]
+	path = vim/bundle/greplace
+	url = git@github.com:vim-scripts/greplace.vim.git
