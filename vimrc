@@ -5,7 +5,7 @@ filetype plugin on
 set tabstop=2
 
 set t_Co=256
-colorscheme wombat
+colorscheme mustang
 set number
 set foldmethod=syntax
 set foldlevelstart=99
