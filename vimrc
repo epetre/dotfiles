@@ -12,3 +12,5 @@ set foldlevelstart=99
 
 let g:NERDTreeDirArrows=0
 map <C-t> :!ctags --extra=+f --exclude=.git --exclude=log -R * `rvm gemdir`/gems/*<CR><CR>
+ set hlsearch
+ set incsearch
