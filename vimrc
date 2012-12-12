@@ -2,7 +2,6 @@ call pathogen#infect()
 syntax on
 filetype plugin indent on
 filetype plugin on
-set tabstop=2
 
 set t_Co=256
 colorscheme mustang
@@ -12,5 +11,12 @@ set foldlevelstart=99
 
 let g:NERDTreeDirArrows=0
 map <C-t> :!ctags --extra=+f --exclude=.git --exclude=log -R * `rvm gemdir`/gems/*<CR><CR>
- set hlsearch
- set incsearch
+
+set hlsearch
+set incsearch
+
+set autoindent
+set expandtab
+set tabstop=2
+set shiftwidth=2
+set softtabstop=2
