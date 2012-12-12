@@ -4,7 +4,7 @@ filetype plugin indent on
 filetype plugin on
 
 set t_Co=256
-colorscheme mustang
+colorscheme GRB256
 set number
 set foldmethod=syntax
 set foldlevelstart=99
