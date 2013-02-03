@@ -1,5 +1,9 @@
 
 PATH=$PATH:/usr/lib/Sublime\ Text\ 2/
+#utilities
+alias z='zeus'
+alias zs='rm -f .zeus.sock && z start'
+alias zc='z console'
 
 #gems
 alias cs='config-store'
