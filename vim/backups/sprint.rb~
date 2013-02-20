@@ -1,0 +1,281 @@
+require 'maximum_points_validator'
+
+class Sprint < ActiveRecord::Base
+  extend FriendlyId
+  friendly_id :name, :use => :slugged
+  belongs_to :team
+  has_many :progresses, :autosave => true, :dependent => :destroy
+  accepts_nested_attributes_for :progresses
+  attr_accessible :name, :start_date, :duration, :total_points, :include_weekend, :is_private, :days
+
+  validates :self, :sprint_name => true
+  validates_presence_of [:name, :duration, :start_date, :total_points], :message => "can't be blank"
+  validates :start_date, :sprint_days => { :message => 'cannot be within a weekend if include weekend is not selected' }
+  validates :include_weekend, :sprint_days => { :message => 'has to be selected if you want a date to be in a weekend' }
+  validates_numericality_of :duration, :only_integer => true, :message => "can only be a whole number"  
+  validates :total_points, :maximum_points => true, :numericality => { :only_integer => true, :greater_than => 0, :message => "can only be a positive whole number" }
+
+  after_initialize :init
+  def init
+    self.include_weekend ||= false
+  end
+
+  def today
+    if team.nil?
+      @today ||= Date.today
+    else
+      @today ||= Time.now.getgm.localtime(timezone).to_date
+    end
+  end
+
+  def timezone
+    @timezone ||= lambda do
+      timezone = team.timezone
+      if timezone =~ /^\-?\d\d?$/
+        if timezone.include? '-'
+          timezone = "-#{timezone[1..-1].rjust(2, '0')}:00"
+        else
+          timezone = "+#{timezone.rjust(2, '0')}:00"
+        end
+      else
+        timezone = ActiveSupport::TimeZone.new(team.timezone).formatted_offset
+      end
+      timezone
+    end.call
+  end
+
+  def formatted_days
+    @formatted_days ||= lambda do
+      [days[0]] + days.drop(1).map{|x| x.day.to_s}
+    end.call
+  end
+
+  def days
+    @days ||= days_from_duration(duration) 
+  end
+
+  def days= val
+    @days = val 
+  end
+
+  def days_from_duration duration
+    days = ["Start"]
+    return days if start_date.nil?
+    return days.concat([start_date.to_date]) if duration.nil?
+    
+    if include_weekend
+      return days.concat((1..duration).map{|x| start_date.to_date + (x - 1).day }) 
+    end
+
+    inc = 0
+    days = days + (1..duration).collect do |x|
+      date = start_date.to_date + (x - 1 + inc).day
+      while date.weekend? do
+        inc += 1
+        date = start_date.to_date + (x - 1 + inc).day
+      end
+      date
+    end
+    days
+  end
+
+  def days_remaining 
+    r = duration...0
+    (r.first).downto(r.last)
+  end
+  
+  def points
+    @points ||= lambda do
+      my_points = []
+      nb_days_progressed.times { my_points << total_points }
+
+      days.drop(1).each_with_index do |current_day, i|
+        current_points = progresses.select {|x| x.apply_date == current_day }
+          .collect { |x| x.points }
+          .sum
+      
+        last_index = my_points.size - 1
+        i.upto(last_index) { |x| my_points[x] = (my_points[x] - current_points) }
+      end  
+      
+      max_index = nb_days_progressed - 1
+      [total_points] + my_points[0..max_index]
+    end.call
+  end
+   
+  def nb_days_progressed
+    @nb_days_progressed ||= lambda do
+      if progresses.reduce(0){|sum, p| sum + p.points } == total_points
+        pts = 0
+        last = progresses
+          .sort_by{|p| p.apply_date }
+          .detect do |p|
+            pts += p.points
+            pts == total_points
+          end
+        return days.index(last.apply_date)
+      end
+      return days.size - 1 if today > days.last.to_date
+      return 0 if today < start_date.to_date && !progresses.any?{|p| p.points > 0 }
+      
+      dates = progresses.map{|x| x.apply_date.to_date }
+      dates << find_last_available_day_from(today) 
+
+      days.index(dates.max.to_date) || days.index(days.last.to_date)
+    end.call
+  end
+
+  def find_last_available_day_from day
+    return day if include_weekend?
+    return day unless day.weekend?
+    find_last_available_day_from(day - 1.day)
+  end
+
+  def points_percent
+    ((completed_points * 1.0 / total_points) * 100).round 
+  end
+
+  def days_percent
+    ((nb_days_progressed * 1.0 / duration) * 100).round 
+  end
+
+  def estimated_points_left
+    estimated_progress.last * -1
+  end
+
+  def estimated_duration
+    @estimated_duration ||= lambda do
+      index = estimated_progress.index{|p| p <= 0 }  
+      return index unless index.nil?
+      
+      ratio = estimated_ratio
+      return nil if ratio == 0
+      points = total_points
+      i = 0
+
+      while points > 0
+        i += 1
+        points = points - ratio 
+      end
+      i
+    end.call
+  end
+
+  def estimated_day
+    @estimated_day ||= lambda do
+      days_from_duration(estimated_duration).last  
+    end.call
+  end
+
+  def estimated_progress
+    @estimated_progress ||= progress_of estimated_ratio
+  end
+
+  def estimated_ratio
+    return 0 if nb_days_progressed == 0
+    Float(total_points - points.last) / nb_days_progressed
+  end
+  
+  def ideal_progression
+    @ideal_progression ||= progress_of ideal_ratio
+  end
+
+  def ideal_ratio
+    (Float(total_points) / duration).round(2)
+  end  
+  
+  def progress_of ratio
+    current_points = [total_points]
+    duration.times do
+      my_next_point = next_point(current_points, ratio)
+      current_points << my_next_point 
+    end
+    current_points
+  end
+
+  def next_point(current_points, ratio)
+    (current_points.last - ratio).round(2)
+  end
+ 
+  def done?
+    today > days.last.to_date || points.last == 0
+  end
+
+  def success?
+    points.last == 0
+  end
+  
+  def x_title
+    @x_title ||= lambda do
+      first_day = days.drop(1).first
+      if first_day.month == days.last.month
+        return start_date.strftime('%B %Y')
+      elsif first_day.year == days.last.year
+        return "#{first_day.strftime('%B')} to #{days.last.strftime('%B %Y')}"
+      else
+        return "#{first_day.strftime('%B %Y')} to #{days.last.strftime('%B %Y')}"
+      end  
+    end.call
+  end
+  
+  def self.within(team)
+    sprint = Sprint.new
+    sprint.team = team
+    sprint
+  end
+
+  def completed_points
+    self.progresses.collect{ |p| p.points }.inject(0.0){ |sum, p| sum + p }
+  end
+  
+  def weekly_velocity
+    daily_progress = completed_points / duration
+    (self.include_weekend ? daily_progress * 7 : daily_progress * 5).round 2
+  end
+  
+  def tooltips
+    [estimated_tooltips, ideal_tooltips, points_tooltips]
+  end
+
+  def points_tooltips
+    @points_tooltips ||= lambda do
+      start = days[0]
+      days.zip(points).map do |v| 
+        progression = progresses.select{|p| p.apply_date == v[0] }
+          .reduce(""){ |memo, p| memo << tooltip_progress(p); memo }
+
+        date = v[0] == start ? start : v[0].strftime('%b %d')
+        "#{date}\nPoints left: #{v[1]} \n#{progression}"
+      end
+    end.call
+  end
+
+  def estimated_tooltips
+    @estimated_tooltips ||= lambda do
+      start = days[0]
+      days.zip(estimated_progress).map do |v|
+        date = v[0] == start ? start : v[0].strftime('%b %d')
+        "#{date}\nEstimated progress: #{v[1]}"
+      end
+    end.call
+  end
+
+  def ideal_tooltips
+    @ideal_tooltips ||= lambda do
+      start = days[0] 
+      days.zip(ideal_progression).map do |v|
+        date = v[0] == start ? start : v[0].strftime('%b %d')
+        "#{date}\nIdeal progress: #{v[1]}\nRatio: #{ideal_ratio} / day"
+      end
+    end.call
+  end
+
+  def tooltip_progress progress
+    tooltip = "[#{progress.points}] "
+    unless progress.description.blank? 
+      tooltip << "- #{progress.description}"
+    end
+    tooltip << "\n"
+    tooltip
+  end
+end

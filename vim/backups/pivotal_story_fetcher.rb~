@@ -1,0 +1,25 @@
+module PivotalStoryFetcher
+  include PivotalFetcher
+
+  def to_sprint iteration, team
+    build_sprint(iteration) do |s|
+      planned_progresses = progresses iteration['stories']
+      s.total_points = planned_progresses
+        .select{|p| p.points && p.points >= 0 }
+        .inject(0){ |sum, p| sum + p.points }
+      s.pivotal_progresses << planned_progresses.select{ |s| s.apply_date }
+    end
+  end
+  
+  def progresses stories
+    planned_progresses = stories
+      .collect{|s| to_progress s}
+      .select{|s| s.points && s.points >= 0 }
+  end
+  
+  def to_progress story
+    description = description story['name'], story['story_type']
+    apply_date = story['current_state'] == 'accepted' ? story['accepted_at'].to_date : nil
+    PivotalProgress.new(apply_date: apply_date, points: story['estimate'], description: description, integration_id: story['id'].to_s)
+  end
+end

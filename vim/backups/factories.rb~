@@ -1,0 +1,44 @@
+
+FactoryGirl.define do
+  factory :user, :class => PivotalUser do 
+    email 'email@email.com'
+    name "Bobby"
+    authentications { |a| [a.association(:authentication)] }
+    subscriptions do |s| 
+      [Subscription.new(:plan_id => Plan.find_by_name('pivotal-startup').id)]
+    end
+  end
+   
+  factory :authentication do 
+    provider 'provider'
+    uid 'uid'
+  end
+  factory :subscription do
+    plan_id lambda { Plan.find_by_name('pivotal').id }
+  end
+  factory :team, :class => PivotalTeam do
+    my_offset = 3600 * -5
+    zone_name = ActiveSupport::TimeZone::MAPPING.keys.find do |name|
+      ActiveSupport::TimeZone[name].utc_offset == my_offset
+    end
+
+    name "Bobby team"
+    timezone zone_name
+  end
+
+  factory :sprint , :class => PivotalSprint do 
+    name "My Sprint"
+    total_points 100
+    start_date Date.today
+    include_weekend true
+    duration 10
+    is_private false
+  end
+
+  factory :progress , :class => PivotalProgress do 
+    description "Some progress"
+    apply_date Date.today
+    points 5
+  end
+end
+

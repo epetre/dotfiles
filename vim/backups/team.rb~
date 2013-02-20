@@ -1,0 +1,29 @@
+require 'team_name_validator'
+
+class Team < ActiveRecord::Base
+  extend FriendlyId
+  friendly_id :name, :use => :slugged
+  attr_accessible :name, :timezone
+  
+  has_many :public_sprints,
+    :class_name => 'Sprint', 
+    :conditions => ['is_private = ?', false]
+    
+  has_many :sprints, :autosave => true, :dependent => :destroy
+  has_many :teammates, :dependent => :destroy
+  has_many :invitations, :dependent => :destroy
+  has_many :users, :through => :teammates
+
+  accepts_nested_attributes_for :sprints
+
+  #validates_associated :sprints
+  validates :name, :team_name => true
+  validates_presence_of [:name, :timezone], :message => "is mandatory."
+
+  def self.active_teams date
+    Team.count(:distinct => true, :include => {:sprints => :progresses}, :conditions => "progresses.created_at BETWEEN '#{(date - 7.days)}' AND '#{date}'")
+  end
+  def velocity
+    @velocity ||= VelocityGraph.new(sprints)
+  end
+end

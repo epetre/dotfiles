@@ -1,0 +1,35 @@
+class CreateIntegrationIdAndIntegrationHostInPreferenceSheet < ActiveRecord::Migration
+  def up
+    add_column :preference_sheets, :integration_id, :string
+    add_column :preference_sheets, :integration_host, :string
+
+    ActiveRecord::Base.transaction do
+      PivotalUser.all.each do |u|
+        u.preference_sheet.integration_id = u.integration_id
+        u.preference_sheet.integration_host = u.integration_host
+        u.preference_sheet.save(validate: false)
+        u.save(validate: false)
+      end
+    end
+
+    remove_column :users, :integration_id
+    remove_column :users, :integration_host
+  end
+
+  def down
+    add_column :users, :integration_id, :string
+    add_column :users, :integration_host, :string
+
+    ActiveRecord::Base.transaction do
+      PreferenceSheet.select{|p| p.user}.each do |p|
+        p.user.integration_id = p.integration_id
+        p.user.integration_host = p.integration_host
+        p.save(validate: false)
+        p.user.save(validate: false)
+      end
+    end
+
+    remove_column :preference_sheets, :integration_id
+    remove_column :preference_sheets, :integration_host
+  end
+end

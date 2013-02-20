@@ -1,0 +1,19 @@
+class MoveUserIntegrationIdAndIntegrationHostToPreferenceSheet < ActiveRecord::Migration
+  def up
+    execute "UPDATE users u, preference_sheets p
+             SET p.integration_id=u.integration_id, 
+                 p.integration_host=u.integration_host 
+             WHERE u.id = p.user_id"
+    remove_column :users, :integration_id
+    remove_column :users, :integration_host
+  end
+
+  def down
+    execute "UPDATE users u, preference_sheets p 
+             SET u.integration_id = p.integration_id, 
+                 u.integration_host = p.integration_host 
+             WHERE u.id = p.user_id"
+    remove_column :preference_sheets, :integration_id
+    remove_column :preference_sheets, :integration_host
+  end
+end

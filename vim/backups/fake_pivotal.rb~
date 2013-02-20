@@ -1,0 +1,139 @@
+class FakePivotal
+  def initialize
+    @iteration1 = {'start' => Date.today, 'finish' => Date.today + 7.days, 'id' => 1, 'number'=> 1}
+    @iteration2 = {'start' => Date.today  + 7.days, 'finish' => Date.today + 14.days, 'id' => 2, 'number' => 2}
+
+    @story1 = {'story_type' => "feature", 'current_state' => "accepted", 'id' => 1, 'accepted_at' => Date.today + 3.days, 'estimate' => 8, 'name' => "Accepted issue (closed)"}
+    @story2 = {'story_type' => "feature", 'current_state' => "accepted", 'id' => 2, 'accepted_at' => Date.today + 4.days , 'estimate' => 2, 'name' => "Some closed issue name"}
+    @story3 = {'story_type' => "feature", 'current_state' => "accepted", 'id' => 3, 'accepted_at' => Date.today + 4.day, 'estimate' => 2, 'name' => "anything"}
+  
+    @project = {'id' => 1, 'name' => "project_name", 'use_https' => false}
+    @project2 = {'id' => 2, 'name' => "project 2", 'use_https' => false}
+  end
+
+  def setup_basic_fake_data fetcher
+    @iteration1['stories'] = [@story1, @story2] 
+    @iteration2['stories'] = []
+
+    fetcher.stub(:fetch_projects) { [@project] }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1, @iteration2]}
+  end
+  
+  def setup_basic_2_projects_data fetcher   
+    @iteration1['stories'] = [@story1] 
+    @iteration2['stories'] = [@story2]
+
+    fetcher.stub(:fetch_projects) { [@project, @project2]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1]}
+    fetcher.stub(:fetch_iterations).with(@project2['id'].to_s){[@iteration2]}
+  end
+
+  def setup_estimate_on_non_feature_stories fetcher
+    @story1['story_type'] = 'something with an estimate' 
+    setup_basic_fake_data fetcher
+  end
+
+  def setup_changed_data_on_iteration data, fetcher
+    @iteration1['start'] = data[:start]
+    @iteration1['finish'] = data[:finish]
+    @iteration1['number'] = data[:number]
+
+    @story1['accepted_at'] = data[:start] + 3.days
+    @story2['accepted_at'] = data[:start] + 3.days
+
+    @iteration1['stories'] = [@story1, @story2]
+
+    fetcher.stub(:fetch_projects) { [@project]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1]}
+  end
+
+  def setup_basic_2_iterations_data fetcher
+    additional_iteration = {'start' => Date.today, 'finish' => Date.today + 7.days, 'id' => 3, 'number' => 45}
+    additional_iteration['stories'] = [@story1, @story2]
+    @iteration1['stories'] = [@story3]
+    @iteration2['stories'] = []
+
+    fetcher.stub(:fetch_projects) { [@project]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1, @iteration2, additional_iteration]}
+  end
+
+  def setup_changed_data_on_progress data, fetcher
+    @story1['accepted_at'] = data[:accepted_at]
+    @story1['story_type'] = data[:story_type]
+    @story1['current_state'] = data[:current_state]
+    @story1['estimate'] = data[:estimate]
+    @story1['name'] = data[:name]
+
+    @iteration1['stories'] = [@story1, @story2]
+    fetcher.stub(:fetch_projects) { [@project]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1]}
+  end
+
+  def setup_basic_fake_data_with_a_bug_and_a_chore fetcher
+    @story1['story_type'] = 'chore'
+    @story2['story_type'] = 'bug'
+
+    @iteration1['stories'] = [@story1, @story2, @story3] 
+
+    fetcher.stub(:fetch_projects) { [@project]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1]}
+  end
+
+  def setup_basic_fake_data_progress_no_longer_accepted fetcher
+    @story2['current_state'] = "not accepted"
+    setup_basic_fake_data fetcher
+  end
+
+  def setup_basic_fake_data_progress_no_longer_estimated fetcher
+    @story2.delete('estimate')
+    setup_basic_fake_data fetcher
+  end
+
+  def setup_estimate_of_0 fetcher
+    @story1['estimate'] = 0
+    @story2['estimate'] = 0
+    setup_basic_fake_data fetcher
+  end
+
+  def setup_super_long_name fetcher
+    @story1['estimate'] = 2
+    @story1['name'] = "A" * 300
+    @iteration1['stories'] = [@story1]
+    
+    fetcher.stub(:fetch_projects) { [@project]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1]}
+  end
+
+  def setup_unestimated_is_negative_in_pivotal fetcher
+    @story1['estimate'] = -1
+    @story2['estimate'] = 2
+
+    @iteration1['stories'] = [@story1, @story2]
+    @iteration2['stories'] = []
+
+    fetcher.stub(:fetch_projects) { [@project]  }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1, @iteration2]}
+  end
+  
+  def setup_a_nil_iteration_in_project
+    @iteration2 = nil
+    setup_basic_fake_data
+  end
+  
+  def an_iteration_with_3_completed_tasks fetcher
+    @iteration1['stories'] = [@story1, @story2]
+    task1 = {'id' => '1', 'description' => 'task 1', 'position' => 1, 'complete' => true }
+    task2 = {'id' => '2', 'description' => 'task 2', 'position' => 1, 'complete' => true }
+    task3 = {'id' => '3', 'description' => 'task 3', 'position' => 2, 'complete' => true }
+    @story1['tasks'] =  [task1] 
+    @story2['tasks'] = [task2, task3]
+
+    fetcher.stub(:fetch_projects) { [@project] }
+    fetcher.stub(:fetch_iterations).with(@project['id'].to_s){[@iteration1]}
+  end
+
+  def debugging fetcher
+    fetcher.stub(:fetch_projects){[@project]}
+    fetcher.stub(:fetch_iteratons).with(@project['id'].to_s){[{"id"=>1, "number"=>1, "start"=>DateTime.parse('Sun, 23 Dec 2012 13:00:00 +0000'), "finish"=>DateTime.parse('Sun, 06 Jan 2013 13:00:00 +0000'), "team_strength"=>1.0, "stories"=>[{"id"=>41708077, "project_id"=>718077, "story_type"=>"feature", "url"=>"http://www.pivotaltracker.com/story/show/41708077", "estimate"=>8, "current_state"=>"accepted", "description"=>"- Assurer que tout est ok en staging\n- Pousser en prod et migrations\n- Logging (last sync date table)\n- User should see when his a sync occured on a sprint\n- Temps total du sync\n- Heure de debut", "name"=>"Finish and replace sync", "requested_by"=>"Emanuel Petre", "owned_by"=>"Emanuel Petre", "created_at"=>Datetime.parse('Thu, 27 Dec 2012 15:26:26 +0000'), "updated_at"=>DateTime.parse('Mon, 07 Jan 2013 15:58:38 +0000'), "accepted_at"=>DateTime.parse('Wed, 26 Dec 2012 01:00:00 +0000')}, {"id"=>41706999, "project_id"=>718077, "story_type"=>"feature", "url"=>"http://www.pivotaltracker.com/story/show/41706999", "estimate"=>2, "current_state"=>"accepted", "description"=>"Finir nouveau UI avec chart plus grosse etc..\nNouveau look and feel du site et nouvelles proportions", "name"=>"Finir nouveau UI", "requested_by"=>"Emanuel Petre", "owned_by"=>"Emanuel Petre", "created_at"=>DateTime.parse('Thu, 27 Dec 2012 14:51:00 +0000'), "updated_at"=>Datetime.parse('Fri, 28 Dec 2012 16:32:11 +0000'), "accepted_at"=>DateTime.parse('Fri, 28 Dec 2012 16:32:11 +0000')}]}]}
+  end
+end

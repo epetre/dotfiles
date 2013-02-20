@@ -1,0 +1,203 @@
+require 'spec_helper' 
+
+describe Fetcher do
+  before :each do
+    @user = PivotalUser.new(:email => "petreemanuel@gmail.com", :password => "passpass1")
+    @user.preference_sheet.integration_id = "aaaaa"
+    @user.stub(:plan) { Plan.new(:name => "pivotal", :provisioning_count => 5) }
+    UserData.any_instance.stub(:bypass_pivotal?){ true }
+    UserData.any_instance.stub(:can_sync?) { true }
+  end
+
+  it "fetches the basic data from pivotal" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_fake_data @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch)
+
+    data[:sprints].first.total_points.should eq 10
+    data[:progresses].count.should eq 2
+  end
+  
+  it "fetches progress story_type, current_state, accepted_at, estimate, name when progress changes" do
+    new_data = { :accepted_at => Date.today + 1.days, 
+      :story_type => "feature", 
+      :current_state => "accepted", 
+      :estimate => 4, :name => "New name" }
+    
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_changed_data_on_progress new_data, @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+
+    pivotal_progress = data[:progresses].detect{ |p| p.integration_id == '1' }
+    
+    pivotal_progress.apply_date.should eq new_data[:accepted_at]
+    pivotal_progress.points.should eq new_data[:estimate]
+    pivotal_progress.description.should eq "[F] #{new_data[:name]}"
+  end
+
+  it "only fetches accepted stories" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_fake_data_progress_no_longer_accepted  @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    
+    data[:progresses].count.should eq 1
+    data[:sprints].first.total_points.should eq 10
+    data[:sprints].first.pivotal_progresses.inject(0){|sum, i| sum + i.points }.should eq 8
+  end
+
+  it "marks the story as a bug or a chore and leaves features untouched" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_fake_data_with_a_bug_and_a_chore @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    
+    data[:progresses].count.should eq 3
+    data[:progresses][0].description.should match(/^\[C\]/)
+    data[:progresses][1].description.should match(/^\[B\]/)
+    data[:progresses][2].description.should_not match(/ \]$/)
+  end
+
+  it "only fetches estimated stories" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_fake_data_progress_no_longer_estimated @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    
+    data[:progresses].count.should eq 1
+    data[:sprints].first.total_points.should eq 8
+    data[:sprints].first.pivotal_progresses.inject(0){|sum, i| sum + i.points }.should eq 8
+  end
+
+  it "is a story with a very long name" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_super_long_name @fetcher
+    
+    lambda{ @fetcher.fetch }.should_not raise_error(ActiveRecord::RecordInvalid)
+  end
+
+  it "fetches the correct sprint name, duration, start_date" do
+    new_data = { :start => Date.today + 30.days, :finish => Date.today + 45.days, :number => 73 }
+
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_changed_data_on_iteration new_data, @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    
+    pivotal_sprint = data[:sprints].last 
+    pivotal_sprint.name.should eq "Iteration #{new_data[:number]}"
+    pivotal_sprint.duration.should eq 16
+    pivotal_sprint.start_date.should eq new_data[:start]
+  end
+
+  it "should not sync with estimate of 0" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_estimate_of_0 @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    data[:sprints].count.should eq 0
+  end
+
+  it "anything that has an estimate should be counted as a progress and should impact the total points in the sprint" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_estimate_on_non_feature_stories @fetcher
+
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    data[:sprints].count.should eq 1
+    data[:progresses].count.should eq 2
+  end
+  
+  it "fetches all the sprints" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_2_iterations_data @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+
+    data[:sprints].count.should eq 2
+  end
+
+  it "computes the right total of points in sprints" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_unestimated_is_negative_in_pivotal @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+
+    data[:sprints].first.total_points.should eq 2
+  end
+  
+  it "fetches only the 5 last sprints" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotalWithLimit.new.iteration_6_is_added_and_all_others_changed_name @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+
+    data[:teams].length.should eq 2
+    data[:sprints].count.should eq 5
+    data[:sprints].detect{|x| x.integration_id == "1"}.name.should eq "Iteration 101"
+    data[:sprints].detect{|x| x.integration_id == "2"}.name.should eq "Iteration 102"
+    data[:sprints].detect{|x| x.integration_id == "3"}.name.should eq "Iteration 103"
+    data[:sprints].detect{|x| x.integration_id == "5"}.name.should eq "Iteration 105"
+    data[:sprints].detect{|x| x.integration_id == "6"}.name.should eq "Iteration 6"
+  end
+
+  it "sync marks the last sync date localised with team timezone" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_fake_data @fetcher
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    
+    team = data[:teams].first
+    sprint = team.pivotal_sprints.first
+
+    sprint.team = team
+    timezone = sprint.timezone
+    DateHelper.localized_time(sprint.last_sync_date, timezone).to_s.should eq DateHelper.localized_time(Time.now, timezone).to_s
+  end
+
+  it "filters the projects we do not wish to sync" do
+    class FilterTest
+      include PivotalFetcher
+      attr_accessor :projects_filter
+    end
+
+    filter = FilterTest.new
+    filter.projects_filter = ['1']
+
+    actual = filter.filter_projects [{'id' => '1'},{ 'id' => '2'}]
+    expected = [{'id' => '1'}]
+
+    actual.should == expected
+  end
+  
+  it "syncs all projects if filter is nill or empty" do
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_2_projects_data @fetcher
+    @pref = PreferenceSheet.new()
+    @pref.team_integration_id_filter = nil
+    @user.preference_sheet = @pref 
+    @user.save
+
+    data = PivotalHelper.get_data(@fetcher.fetch) 
+    data[:teams].length.should eq 2
+    data[:sprints].length.should eq 2
+  end
+
+  it "works just fine with the task fetcher" do
+    @user.preference_sheet = PreferenceSheet.new(:sync_type => 2)
+    @fetcher = Fetcher.new(@user)
+    FakePivotal.new.setup_basic_2_projects_data @fetcher
+    FakePivotal.new.an_iteration_with_3_completed_tasks @fetcher
+    
+    team = PivotalTeam.new(name: 'allo', id: 123)
+    sprint = PivotalSprint.new integration_id: '1' 
+    progress1 = PivotalProgress.new integration_id: 'some stupid id'                               
+    progress2 = PivotalProgress.new integration_id: 'some stupid id 2'                               
+    sprint.pivotal_progresses << progress1
+    sprint.pivotal_progresses << progress2
+    team.pivotal_sprints << sprint 
+
+    actual = @fetcher.fetch
+    
+    actual.pivotal_teams.first.name.should == 'project_name' 
+    actual.pivotal_teams.length.should == 1 
+    actual.pivotal_teams.first.pivotal_sprints.length.should == 1
+    sprint = actual.pivotal_teams.first.pivotal_sprints.first
+    sprint.name.should == 'Iteration 1'
+    sprint.total_points.should == 3
+    sprint.pivotal_progresses.length.should == 3
+    sprint.pivotal_progresses.each_with_index do |p, i|
+      p.integration_id.should == (i + 1).to_s
+    end
+  end
+end

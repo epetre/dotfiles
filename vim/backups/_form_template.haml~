@@ -1,0 +1,39 @@
+= tag :meta, :name => "stripe_key", :content => "#{STRIPE_PUBLIC_KEY}"
+= tag :meta, :name => "ask_for_card", :content => ask_for_card
+
+.hidden.subscription
+  = form_tag(form_path, :method => form_method) do
+    = hidden_field_tag :id
+    = hidden_field_tag :stripe_token
+
+  .payment
+    .cards
+      .visa
+      .mastercard
+      .amex
+    %form{action: '', method: 'POST', id: 'payment-form'}
+      .field
+        = text_field_tag :card_number, nil, name: nil, size: 20, placeholder: 'Card Number'
+
+      .field
+        = text_field_tag :card_code, nil, name: nil, size: 4, style: 'width:100px', placeholder: 'CVV'
+        %a(href="http://www.cvvnumber.com/cvv.html" target="_blank" rel="tooltip" data-original-title="The CVV Number ('Card Verification Value') on your credit card or debit card. 3 digit number for VISA®, MasterCard® and Discover®. 4 digit number for American Express®")
+          What is this?
+      .field
+        = label :card_month, 'Card Expiration'
+        = select_month nil, { add_month_numbers: true }, { name: nil, id: 'card_month', style: 'width:120px' }
+        = select_year nil, { start_year: Date.today.year, end_year: Date.today.year+15 }, { name: nil, id: "card_year", style: 'width:75px' }
+      #stripe_error
+      %button(type="submit" class="btn btn-success stripe-submit") 
+        Submit
+    .links
+      = link_to 'Any questions?', plans_url + '#faq', target: '_blank', target: '_blank', rel: 'tooltip', 'data-original-title' => "We do not store credit card informations. It is handled by Stripe payments through https."
+
+  .confirm
+    %p(style="font-size: 12px;") Quick reminder: Plan changes are prorated. You can come back to this plan without worrying about hidden fees.
+    .links
+      = link_to 'Any questions?', plans_url + '#faq', target: '_blank', target: '_blank', rel: 'tooltip', 'data-original-title' => "We do not store credit card informations. It is handled by Stripe payments through https."
+    %br
+    %button(class="btn btn-success ok") Change plan
+    %button(class="btn cancel") Cancel
+    %br

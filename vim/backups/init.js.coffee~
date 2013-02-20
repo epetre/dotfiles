@@ -1,0 +1,49 @@
+$(".multiselect").multiselect
+  sortable: false
+  searchable: true
+
+$(".fancy-described").has(".description").each (i) ->
+  $container = $(this)
+  $container.css "cursor", "pointer"
+  $container.fancybox
+    transitionIn: "fade"
+    transitionOut: "fade"
+    titlePosition: "inside"
+
+  $description = $container.find(".description")
+  id = Math.round(Math.random() * 1000000)
+  $container.attr "href", "##{id}"
+  $description.attr "id", id
+  $description.wrap('<div style="display:none" />');
+
+$("input[name*=apply_date]").hide()
+dates = $('meta[name=progress_date_choices]').attr("content")
+if dates?
+  dates = dates.split('&')
+  dates = (Date.parse(date) for date in dates)
+
+  $("#apply_date").DatePicker
+    mode: "single"
+    inline: true
+    selectableDates: dates
+    markFuture: false
+    date: Date.parse($("input[name*=apply_date]").val())
+    current: Date.parse($("input[name*=apply_date]").val())
+    onChange: (el) ->
+      $("input[name*=apply_date]").val el
+
+$daterange = $("input[name*=daterange]")
+$daterange.hide()
+str = $daterange.val()
+if str?
+  from = Date.parse(str.split("to")[0])
+  to = Date.parse(str.split("to")[1])
+
+  $("#daterangepicker").DatePicker
+    inline: true
+    date: [from, to]
+    mode: "range"
+    calendars: 3
+    markFuture: true
+    onChange: (dates, el) ->
+      $daterange.val dates[0] + "to" + dates[1]

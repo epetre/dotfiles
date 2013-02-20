@@ -1,0 +1,38 @@
+= form_for(@sprint, :url => [@team, @sprint]) do |f|
+  %fieldset(style='width: 600px; margin-left: 200px; -webkit-border-radius: 20px; background-color: white;border: 1px solid #999; padding: 30px;')
+    .field
+      = render :partial => 'shared/errors', :locals => {:resource => @sprint, :resource_name => 'sprint'}
+
+    -if @can_be_private
+      .private(style='cursor:pointer;color:#777;font-size:50px;margin-bottom:20px;float:right')
+        %i(title="Make sprint private or public" class="#{@sprint.is_private ? 'icon-lock': 'icon-unlock'}")
+    = f.hidden_field :is_private
+
+    .field(style="margin-bottom:30px")
+      %label(style = 'color:#777;display:block;font-size:30px;margin-bottom:20px')
+      = f.text_field :name, :placeholder => 'Name', style: 'font-size: 30px; width:450px;line-height:30px; height: 30px; background-color: transparent;'
+      
+    .field(style="margin-bottom:30px")
+      %span(style ='color:#777;display:block;font-size:30px;margin-bottom:20px')
+        %i.icon-calendar
+        Days
+
+      .holder(style='padding-left:20px')
+        = f.hidden_field :days, :value => @sprint.days.join(' ')
+        #start_date(style='margin-bottom:20px')
+        %label
+          include weekends?
+          = check_box_tag 'include_weekends', nil, true
+
+    .field
+      %label(style = 'color:#777;font-size:30px')
+        %i.icon-resize-horizontal
+        Total points
+      .holder(style='padding-left:20px') 
+        = f.text_field :total_points, :min => 0, :style => 'text-align:center;font-size: 60px; width: 100px; height: 60px; background-color: transparent;'
+        .slide(style='width:400px;padding-top: 40px;display: inline-block;')
+          #total_points_slider
+    .field
+      %button(type='submit' class='btn btn-success btn-toolbar' style='font-size:40px;padding:15px;float:right;width:100px')
+        %i.icon-refresh
+        

@@ -1,0 +1,97 @@
+class Subscription < ActiveRecord::Base
+  belongs_to :user
+  belongs_to :plan
+  attr_accessor :token
+  after_initialize :extend_subs
+  before_save :save_payment_info_and_user, :unless => :skip_callbacks
+  
+  validate :free_trial, :paid_plan, :unless => :skip_callbacks
+  @@skip_callbacks = false
+  #for migration purpose, this can be deleted after
+  def self.set_skip_callbacks(value)
+    @@skip_callbacks = value
+  end
+  def skip_callbacks
+    @@skip_callbacks 
+  end
+
+  def extend_subs
+    case plan.name
+    when 'free trial'
+      self.extend FreeTrial
+    when /pivotal-.*/
+      self.extend PivotalSubscription 
+    when 'private' 
+      self.extend PrivateSubscription 
+    when 'basic' 
+      self.extend BasicSubscription
+    end
+  end
+
+  private
+    def save_payment_info_and_user
+      change_payment
+      if user.has_payment_info? && plan.paid?
+        unless user.payment_info.save 
+          raise "Payment info did not save for user: #{user_id} plan: #{plan_id} subscription: #{id}"
+        end
+      end
+      user.update_column(:type, new_user_type)
+    end
+    def change_payment 
+      if plan.paid?
+        user.upgrade_payed_plan plan, token
+      elsif user.last_saved_subscription && user.last_saved_subscription.plan.paid?
+        user.cancel_subscription
+      end
+    end
+    def free_trial
+      @free_trial ||= Plan.find_by_name('free trial')
+      if @free_trial && plan_id == @free_trial.id
+        if user.subscriptions.any?{|s| s.plan_id == @free_trial.id && s.id != id }
+          errors[:base] << "can not subscribe twice to the free trial"
+        end
+      end
+    end
+    def paid_plan
+      if plan.paid?
+        if token.blank? && !user.has_payment_info? 
+          errors[:base] << "is missing it's token or payment info"
+        end
+      end
+    end
+end
+
+module FreeTrial
+  def new_user_type
+    "PivotalUser" 
+  end
+  def notify
+  end
+end
+module PivotalSubscription
+  def new_user_type
+    "PivotalUser" 
+  end
+  def notify
+    Notifier.plan_upgrade_pivotal(user).deliver
+  end
+end
+
+module PrivateSubscription
+  def new_user_type
+    "User"
+  end
+  def notify
+    Notifier.plan_upgrade_private(user).deliver
+  end
+end
+
+module BasicSubscription
+  def new_user_type
+    "User"
+  end
+  def notify
+    Notifier.plan_downgrade(user).deliver
+  end
+end

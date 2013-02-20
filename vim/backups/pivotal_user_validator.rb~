@@ -1,0 +1,9 @@
+class PreferenceSheetValidator < ActiveModel::Validator
+  def validate(sheet)
+    if sheet.integration_id_changed?
+      unless sheet.integration_id.blank? || UserData.validate_pivotal(sheet)
+        user.errors[:token] << "#{user.integration_id} is invalid or failed to connect to host: #{user.integration_host}." 
+      end
+    end
+  end
+end

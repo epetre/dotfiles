@@ -1,0 +1,105 @@
+- content_for :page_title do
+  Your account
+- content_for :tabs do
+  %ul.nav.nav-tabs
+    %li.active
+      %a{"data-toggle" => "tab", :href => "#main"} Profile
+    %li
+      %a{"data-toggle" => "tab", :href => "#billing"} Plans & Billing
+.tab-pane#main.active
+  .row.profile
+    .span12
+    .controls
+      .span1.offset1
+        = image_tag current_user.picture_url
+      .span5
+        %p Your default picture <b>can be changed</b>. Like many websites, we use #{link_to 'gravatars', 'http://en.gravatar.com/', target: 'blank'}. You can #{link_to 'create your gravatar', 'https://en.gravatar.com/site/signup/', target: 'blank'} in just a few clicks and have that image follow you around where you need it.
+  .row
+    .span12
+  .row
+    .span10.offset1
+      = form_for(resource, :as => resource_name, :url => registration_path(resource_name), :html => { :method => :put }) do |f|
+        = render :partial => 'shared/errors', :locals => {:resource => resource, :resource_name => 'account'}
+        .controls
+          = f.text_field :name, :class => 'field', :placeholder => 'Name' 
+        .controls
+          = f.text_field :email, :class => 'field', :placeholder => 'Email' 
+        .controls 
+          = f.password_field :current_password , :class => 'field', :placeholder => 'Current password'
+          %span.change-pass *Only if you want to change your password, otherwise leave blank. 
+        .controls  
+          = f.password_field :password , :class => 'field', :placeholder => 'New password' 
+          = f.password_field :password_confirmation , :class => 'field', :placeholder => 'New password confirmation' 
+        .controls
+          %label
+            = check_box_tag('bdc_news_letter', 'bdc', @bdc_news_letter)
+            Main news letter
+        .controls
+          %label
+            = check_box_tag('pt_news_letter', 'pt', @pt_news_letter)
+            Pivotal tracker news letter
+
+        .controls
+          = f.submit "Update" , :class => 'btn btn-toolbar btn-success'
+  .row
+    .span10.offset1
+      %h3 Cancel my account
+      .cancel-text If you are unhappy please communicate with us, leave us a
+      %a(href="javascript:UserVoice.showPopupWidget();")
+        feedback
+      or cancel if we cannot help.
+  .row
+    .span10.offset1
+      = button_to "Cancel", registration_path(resource_name), :data => {:confirm => "Are you sure?"}, :class => 'btn btn-toolbar btn-danger' , :method => :delete
+
+.tab-pane#billing
+  .span11
+    = render :partial => 'stripe/form_template', locals: { form_path: '/billing', form_method: 'put', ask_for_card: true }
+    .span12
+    .span12
+      %p(style='font-size: 16px')
+        You are currently signed up for the 
+        %b #{resource.plan.displayed_name.capitalize} 
+        plan for: 
+        %b #{number_to_currency(resource.plan.price, :unit => "$")}/month
+    .span12
+      %p(style='font-size: 16px') 
+        - case current_user.credit_card_status
+          - when :no_card
+            No credit card is attached to this profile.
+          - when :expired
+            %b #{current_user.payment_info.active_card.type.capitalize}
+            card is
+            %b expired
+            , please update it using the link below. This is a required step even if the number stayed the same.
+          - when :expiring
+            %b #{current_user.payment_info.active_card.type.capitalize}
+            card is
+            %b expiring soon
+            , please update it using the link below.
+            %br/ 
+            This is a required step even if the number stayed the same.
+          - when :valid
+            %b #{current_user.payment_info.active_card.type.capitalize}
+            card is
+            %b fine
+    .span12
+    .span5
+      %h3 Update credit card
+      %p You can update the infos of your credit card by clicking here.
+      %button.btn.btn-success{ id: "update-billing-info", href: '#' }
+        Update
+    .span5
+      %h3 Change Plan
+      %p Upgrade or downgrade to a new plan by clicking here.
+      = link_to 'Change', plans_url, :class => 'btn btn-success' 
+      %br
+      %br
+    .span12
+    .span5
+      %h3 Cancel your plan
+      %p If you are not satisfied with your plan, you can cancel it here. It will revert your account to the default free plan.
+      = button_to 'Cancel plan', {:action => "update", :controller => "signups", :id => @basic.id, }, :class => 'btn btn-danger',:method => :put, :style => 'height: 30px;' 
+
+- content_for :js do
+  = javascript_include_tag 'https://js.stripe.com/v1/'

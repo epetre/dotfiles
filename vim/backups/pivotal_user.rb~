@@ -1,0 +1,36 @@
+class PivotalUser < User
+  include Syncable
+
+  def children
+    pivotal_teams
+  end
+
+  has_many :pivotal_teams, through: :teammates, autosave: true
+
+  def integration_attributes
+    attributes = super
+    attributes[:sync_count] = sync_count
+    attributes[:id] = id
+
+    if preference_sheet
+      attributes[:integration_id]  = preference_sheet.integration_id
+      attributes[:integration_host] = preference_sheet.integration_host
+      attributes[:team_integration_id_filter] = preference_sheet.team_integration_id_filter
+    else
+      # important because we need to call the method
+      attributes[:integration_id]  = nil
+      attributes[:integration_host] = nil
+      attributes[:team_integration_id_filter] = []
+    end
+
+    attributes
+  end
+
+  def sync_count
+    plan.provisioning_count
+  end
+
+  def self.model_name
+    User.model_name
+  end
+end

@@ -1,0 +1,49 @@
+class UserData
+  include Syncable
+  attr_accessor :integration_id, :pivotal_teams, :sync_count, :integration_host, :team_integration_id_filter, :id
+
+  def children
+    pivotal_teams
+  end
+
+  def initialize attrs = {}
+    attrs.each { |k, v| instance_variable_set("@#{k}", v) } 
+    self.pivotal_teams ||= []
+  end
+
+  def set_default_host
+    self.integration_host = PivotalUser.default_integration_host if self.integration_host.blank?
+  end
+
+  def valid?
+    pivotal_teams.all?{|t| t.valid? }
+  end
+
+  def can_sync?
+    !integration_id.blank? && self.class.validate_pivotal(self) 
+  end
+  
+  def self.validate_pivotal(sheet)
+    #only on test
+    return true if sheet.respond_to?(:bypass_pivotal?) && sheet.bypass_pivotal?
+    token_valid?(sheet.integration_host, sheet.integration_id) 
+  end
+
+  def self.token_valid? host, token
+    begin
+      RestClient.get("https://#{host}/services/v3/activities", {'params' => {'limit' => 1}, 'X-TrackerToken' => token})
+      return true
+    rescue
+      return false
+    end
+  end
+  def inspect
+    hash = {:integration_id => integration_id, :teams => children, :sprints => children.map{|t| t.pivotal_sprints }.flatten}
+    hash[:progresses] = hash[:sprints].map{|s| s.pivotal_progresses }.flatten
+    hash[:errors] = errors(hash[:teams], hash[:sprints], hash[:progresses]) 
+    hash.inspect
+  end
+  def errors *arrays
+    arrays.map{|array| array.map{|i| {:id => i.id, :type => i.type, :errors => i.errors.full_messages} }}.flatten
+  end
+end

@@ -1,0 +1,140 @@
+class RegistrationsController < Devise::RegistrationsController
+  include Spy
+  before_filter :setup_negative_captcha, :setup_sync_vars
+  layout :layout_by_action
+
+  def new
+   session[:omniauth_params] = {free_trial: request['free-trial']} if request['free-trial']
+   super
+  end
+
+  def create
+    raise 'a bot tried to create an account' unless @captcha.valid? 
+    super
+    session[:omniauth] = nil unless @user.new_record?
+
+    twitter_free_trial = session[:omniauth_params] && session[:omniauth_params][:free_trial]
+    session[:omniauth_params] = nil
+    unless @user.errors.any? || @user.confirmation_required?
+      if params['free_trial'] == 'true' || twitter_free_trial
+        NewsLetter.new(PIVOTAL_TRACKER_MAILING_LIST_ID).subscribe @user
+      end
+      NewsLetter.new(BURNDOWN_MAILING_LIST_ID).subscribe @user
+    end
+  end
+
+  def edit
+    @basic = Plan.find_by_name('basic')
+    @pt_news_letter = NewsLetter.new(PIVOTAL_TRACKER_MAILING_LIST_ID).is_subscribed? @user
+    @bdc_news_letter = NewsLetter.new(BURNDOWN_MAILING_LIST_ID).is_subscribed? @user
+    render :layout => 'application'
+  end
+
+  def build_resource(*args)
+    if params[:user].nil? || session[:omniauth].nil?
+      @user = new_user
+    else
+      @user = User.find_by_email(params[:user][:email]) || new_user
+    end
+    unless session[:omniauth].nil?
+      @user.apply session[:omniauth]
+      @user.valid?
+    end
+  end
+      
+  def update
+    NewsLetter.new(PIVOTAL_TRACKER_MAILING_LIST_ID).update_subscription resource, params[:pt_news_letter]
+    NewsLetter.new(BURNDOWN_MAILING_LIST_ID).update_subscription resource, params[:bdc_news_letter]
+    session[:omniauth_params] = nil
+
+    @basic = Plan.find_by_name('basic')
+    self.resource = resource_class.to_adapter.get!(send(:"current_#{resource_name}").to_key)
+
+    # If the user has filled in any of the password fields, we'll update their password
+    any_passwords = %w(password password_confirmation current_password).any? do |field|
+      params[resource_name][field].present?
+    end
+
+    update_method = any_passwords ? :update_with_password : :update_without_password
+    if resource.send(update_method, params[resource_name])
+      set_flash_message :notice, :updated if is_navigational_format?
+      sign_in resource_name, resource, :bypass => true
+      respond_with resource, :location => after_update_path_for(resource)
+    else
+      clean_up_passwords(resource)
+      respond_with_navigational(resource){ render :edit }
+    end
+  end
+  
+  # POST /users
+  # POST /users.xml
+  def sync
+    posted = User.new(params[:user])
+    user = User.find_by_email(posted.email)
+    @team = Team.new
+    
+    if user && user.valid_password?(posted.password) && user.valid?
+      user.remember_me = params[:remember_me]
+      user.transfer_and_remove!(current_user) { sign_out current_user }
+      user.save!
+      sign_and_redirect user
+    else
+      respond_to do |format|
+        @user = posted
+        flash[:notice] = "Sync failed!"
+        format.html { render "setup" }
+        format.xml  { render :xml => current_user, :location => current_user }  
+      end       
+    end   
+  end
+  
+  def unsync
+    token = params[:token]
+    
+    user = User.find_by_confirmation_token(token)
+    raise "Somebody tried to unsync his user using token #{token} but we couldn't find the user" if user.nil?   
+    user.unsync
+    
+    user.save!
+    
+    flash[:notice] = "Unsync completed, sorry for the inconvenience..."
+    sign_and_redirect user
+  end
+
+  private
+    def layout_by_action
+      if ['new', 'create'].include?(params[:action])
+        'home_layout'
+      else
+        'application'
+      end
+    end
+    def setup_sync_vars
+      if user_signed_in?
+        @show_twitter_sync = current_user.has_provider?('twitter')
+        @show_facebook_sync = current_user.has_provider?('facebook')
+        @show_google_sync = current_user.has_provider?('google')
+      end
+    end
+    def new_user
+      h = (params[:user] || {}).merge(@captcha.values)
+      user = resource_class.new_with_session(h, session)
+
+      twitter_free_trial = session[:omniauth_params] && session[:omniauth_params][:free_trial]
+      if params['free_trial'] == 'true' || twitter_free_trial
+        user.subscriptions.build(:plan_id => Plan.find_by_name('free trial').id, :user => user)
+      end
+      user
+    end
+    def setup_negative_captcha
+      @captcha = NegativeCaptcha.new(
+        :secret => 'le secret de la vie', #A secret key entered in environment.rb. 'rake secret' will give you a good one.
+        :spinner => request.remote_ip,
+        :fields => [:name, :email],
+        :params => params)
+    end
+
+    def after_update_path_for(resource)
+      edit_registration_path(resource)
+    end
+end

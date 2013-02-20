@@ -1,0 +1,24 @@
+pick e335a2c replacing datepicker and date format hacks, iteration 1
+pick aa74653 Cleanup
+pick d21c487 Fixes js in plans page
+pick 9bbc19f Cleanup of db backups Moves integration_id and integration_host to preference_sheet (migrations too) Fixes most tests Fixes sync since we no longer force a date format in rails
+pick a9b6761 Finishing touches on integration id and host move Fixes gibbon subscribtion when form has any errors
+pick 41b8ddc Regenerates error pages Fixes tests after rebase
+
+# Rebase feeceb9..41b8ddc onto feeceb9
+#
+# Commands:
+#  p, pick = use commit
+#  r, reword = use commit, but edit the commit message
+#  e, edit = use commit, but stop for amending
+#  s, squash = use commit, but meld into previous commit
+#  f, fixup = like "squash", but discard this commit's log message
+#  x, exec = run command (the rest of the line) using shell
+#
+# These lines can be re-ordered; they are executed from top to bottom.
+#
+# If you remove a line here THAT COMMIT WILL BE LOST.
+#
+# However, if you remove everything, the rebase will be aborted.
+#
+# Note that empty commits are commented out

@@ -1,0 +1,18 @@
+.sidebar-nav
+  %ul.nav.nav-list
+    = left_menu_item 'Dashboard', root_url, 'icon-dashboard'
+    = left_menu_item 'Plans', plans_url, 'icon-key'
+    - if user_signed_in?
+      = left_menu_item 'Pending invites', user_invitations_path, 'icon-envelope'
+    - if can? :manage, PreferenceSheet
+      = left_menu_item 'Pivotal Tracker', pivotal_preferences_path, 'icon-beaker'
+    - if can? :manage, Report
+      = left_menu_item 'Reports', report_path, 'icon-list-alt'
+    - if can? :manage, ClientError
+      = left_menu_item 'Client errors', client_errors_path, 'icon-wrench'
+  .togglemenuleft
+    %a.toggle-menu
+      - if cookies['shrink-left-menu'] == 'true'
+        %i.icon-white.icon-circle-arrow-right
+      - else
+        %i.icon-white.icon-circle-arrow-left

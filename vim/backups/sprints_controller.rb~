@@ -1,0 +1,126 @@
+class SprintsController < ApplicationController
+  before_filter :load_team
+  before_filter :load_sprints, :only => :index
+  before_filter :load_sprint, :only => [:new, :create]
+  before_filter :adjust_dates
+
+  load_and_authorize_resource :sprint
+  # GET /sprints
+  # GET /sprints.xml
+  def index
+    respond_to do |format|
+      format.html # index.html.erb
+      format.xml  { render :xml => @sprints }
+    end
+  end
+
+  # GET /sprints/1
+  # GET /sprints/1.xml
+  def show
+    @additional_chart_info = " - last sync: #{ @sprint.localized_last_sync_date }" if @sprint.is_a? PivotalSprint
+
+    @progress = Progress.new
+    @progress_date_choices = @sprint.days.drop(1).map{ |d| d.inspect }.join('&')
+    respond_to do |format|
+      format.html # show.html.erb
+      format.xml  { render :xml => @sprint }
+    end
+  end
+
+  # GET /sprints/1/print
+  # GET /sprints/1/print.xml
+  def print
+    @sprint = @team.sprints.find_by_slug(params[:sprint_id])
+    authorize! :print, @sprint
+    respond_to do |format|
+      format.html { render :layout => 'print' }
+      format.xml  { render :xml => @sprint }
+    end
+  end
+  
+  # GET /sprints/new
+  # GET /sprints/new.xml
+  def new
+    @can_be_private = current_user.can_make_private?
+    respond_to do |format|
+      format.html # new.html.erb
+      format.xml  { render :xml => @sprint }
+    end
+  end
+
+  # GET /sprints/1/edit
+  def edit
+    @sprint.days = @sprint.days.first == 'Start' ? @sprint.days[1..@sprint.days.count] : @sprint.days
+    #@sprint.days = @sprint.days[1]
+    @can_be_private = current_user.can_make_private?
+    render "edit_pivotal" if(@sprint.kind_of? PivotalSprint) 
+  end
+  
+  # POST /sprints
+  # POST /sprints.xml
+  def create
+    respond_to do |format|
+      if @sprint.save
+        format.html { redirect_to([@team, @sprint]) }
+        format.xml  { render :xml => @sprint, :status => :created, :location => @sprint }
+      else
+        format.html { render :action => "new" }
+        format.xml  { render :xml => @sprint.errors, :status => :unprocessable_entity }
+      end
+    end
+  end
+
+  # PUT /sprints/1
+  # PUT /sprints/1.xml
+  def update
+    respond_to do |format|
+      @sprint.assign_attributes params[:sprint]
+      puts "--------------_UPDATE___-------------"
+      puts @sprint.days.inspect
+      puts '00000000000000000000000000000'
+      puts @sprint.is_private
+      puts 'DONE!!!!!!!!!1'
+      if @sprint.save
+        format.html { redirect_to([@sprint.team, @sprint]) }
+        format.xml  { head :ok }
+      else
+        format.html { render :action => "edit" }
+        format.xml  { render :xml => @sprint.errors, :status => :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /sprints/1
+  # DELETE /sprints/1.xml
+  def destroy
+    @sprint.destroy
+    respond_to do |format|
+      format.html { redirect_to(team_path(@team)) }
+      format.xml  { head :ok }
+    end
+  end
+
+  protected
+    def load_team
+      @team = Team.find(params[:team_id])
+    end
+
+    def load_sprint
+      if params.include? :sprint
+        @sprint = @team.sprints.build params[:sprint]
+      else
+        @sprint = Sprint.new
+      end
+      @sprint.team = @team if @sprint.team.nil?
+    end
+
+    def adjust_dates
+      if params.include? :sprint
+        params[:sprint][:days] = params[:sprint][:days].split(' ').map{|d| Date.parse d}
+      end
+    end
+
+    def load_sprints
+      @sprints = @team.sprints.select{ |s| can? :read, s }
+    end
+end

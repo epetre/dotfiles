@@ -1,0 +1,18 @@
+require 'maximum_points_validator'
+
+class Progress < ActiveRecord::Base
+  attr_accessible :points, :description, :apply_date
+  belongs_to :sprint
+  scope :applied_on, (lambda do |date| {:conditions => ['apply_date = ?', title]} end)
+    
+  validates_length_of :description, :maximum=>250
+  validates_presence_of [:apply_date, :points], :message => "can't be blank"
+  validates :apply_date, :progress_date => true
+  validates :points, :maximum_points => true, :numericality => { :only_integer => true, :greater_than_or_equal_to => 0, :message => "can only be a positive whole number" }
+    
+  def self.within(sprint)
+    progress = Progress.new
+    progress.sprint = sprint
+    progress 
+  end
+end

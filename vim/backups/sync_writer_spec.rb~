@@ -1,0 +1,284 @@
+require 'spec_helper'
+
+describe 'SyncWriter' do
+  before :all do
+    class PivotalUser
+      def bypass_pivotal?
+        true
+      end
+    end
+    @writer = SyncWriter.new
+    Subscription.set_skip_callbacks(true)
+  end
+  after :all do
+    Subscription.set_skip_callbacks(false)
+  end
+  it "updates the team data" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2", name: 'new name')
+
+    in_db = FactoryGirl.create(:user)
+    in_db.preference_sheet.integration_id = "1"
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.save!
+
+    old_team = in_db.pivotal_teams[0]  
+    expected = user.pivotal_teams[0] 
+
+    actual = @writer.prepare(user).pivotal_teams[0]
+    actual.save!
+    
+    actual.equivalent_to?(expected).should be_true
+  end
+  
+  it "updates multiples teams data" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2", name: 'some name')
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "3", name: 'another name')
+    
+    in_db = FactoryGirl.create(:user)
+    in_db.preference_sheet.integration_id = "1"
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "3")
+    in_db.save!
+    
+    expected = user.pivotal_teams 
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams 
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true 
+  end
+
+  it "insert a new team if it doesn't exist" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2", name: 'some name', timezone: 'a timezone')
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "3", name: 'another name', timezone: 'another one')
+    
+    in_db = FactoryGirl.create(:user)
+    in_db.preference_sheet.integration_id = "1"
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2", timezone: 'a timezone')
+    in_db.save!
+    
+    expected = user.pivotal_teams 
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams 
+    to_save.save!
+    
+    actual.equivalent_to?(expected).should be_true 
+  end
+
+  it "does not delete a team if it does not exist in the clone anymore" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    
+    in_db = FactoryGirl.create(:user)
+    in_db.preference_sheet.integration_id = "1"
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "3")
+    in_db.save!
+    
+    expected = in_db.pivotal_teams 
+    
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams 
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+
+  it "updates a sprint data" do
+    user = FactoryGirl.build(:user)
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "2") 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "2", name: 'old name', total_points: 50)
+    in_db.save!
+
+    expected = user.pivotal_teams[0].pivotal_sprints[0] 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints[0] 
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end 
+
+  it "updates multiples sprints" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3") 
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "4") 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3", name: 'old name', total_points: 50)
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "4", name: 'old name 2', total_points: 50)
+    in_db.save!
+
+    expected = user.pivotal_teams[0].pivotal_sprints 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints
+    to_save.save!
+     
+    actual.equivalent_to?(expected).should be_true
+  end 
+
+  it "inserts sprints when needed" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "4") 
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3") 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "4", name: 'old name 2', total_points: 50)
+    in_db.save!
+
+    expected = user.pivotal_teams[0].pivotal_sprints 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints
+   to_save.save!
+    actual.equivalent_to?(expected).should be_true
+  end
+
+  it "does not delete a sprint if it is not present in the clone" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3") 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "4")
+    in_db.save!
+
+    expected = in_db.pivotal_teams[0].pivotal_sprints 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+
+  it "updates the progresses" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3") 
+    user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "1", points: 20, apply_date: Date.today + 3.day) 
+    user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "2", points: 10, apply_date: Date.today + 1.day) 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3")
+    in_db.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "1") 
+    in_db.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "2") 
+    in_db.save!
+
+    expected = user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+
+  it "deletes the progresses" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3") 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3")
+    in_db.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "1") 
+    in_db.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "2") 
+    in_db.save!
+
+    expected = user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+
+  it "inserts the progresses" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3") 
+    user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "1") 
+    user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses << FactoryGirl.build(:progress, integration_id: "2") 
+
+    in_db = FactoryGirl.create(:user, integration_id: "1")
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, integration_id: "3")
+    in_db.save!
+
+    expected = user.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses 
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints[0].pivotal_progresses
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+  
+  it "does not modify include_weekend and is_private if they were already modified" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+    user.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, start_date: Date.new(2012, 12, 26), integration_id: "3", include_weekend: true, is_private: true) 
+
+    in_db = FactoryGirl.create(:user)
+    in_db.preference_sheet.integration_id = "1"
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2")
+    in_db.pivotal_teams[0].pivotal_sprints << FactoryGirl.build(:sprint, start_date: Date.new(2012, 12, 26), integration_id: "3", include_weekend: false, is_private: false)
+    in_db.save!
+
+    expected = in_db.pivotal_teams[0].pivotal_sprints[0]
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0].pivotal_sprints[0]
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+
+  it "does not modify timezone if it was already modified" do
+    user = FactoryGirl.build(:user) 
+    user.preference_sheet.integration_id = "1"
+    user.pivotal_teams << FactoryGirl.build(:team, integration_id: "2")
+
+    in_db = FactoryGirl.create(:user)
+    in_db.preference_sheet.integration_id = "1"
+    in_db.pivotal_teams << FactoryGirl.create(:team, integration_id: "2", timezone: 'allo timezone')
+    in_db.save!
+
+    expected = in_db.pivotal_teams[0]
+
+    to_save = @writer.prepare(user)
+    actual = to_save.pivotal_teams[0]
+    to_save.save!
+
+    actual.equivalent_to?(expected).should be_true
+  end
+end

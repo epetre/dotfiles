@@ -1,0 +1,120 @@
+require 'spec_helper'
+
+describe User, ".name" do
+  it "saves a short name if name is null at save time" do
+    user = User.new(:email => "heVilello@mail.com", :password => "qwe123")
+    user.save!
+    
+    User.where(:name => "hevilello").any?.should eq true
+  end
+
+  it "saves a name when it is set" do
+    user = User.new(:email => "heVilello@mail.com", :password => "qwe123", :name => "suzanna")
+    user.save!
+    
+    User.where(:name => "suzanna").size.should eq 1
+  end
+end
+
+describe User, ".transfer_and_remove!" do
+  it "deletes the user passed as a parameter and its authentications" do
+    user1 = User.new(:email => "1@mail.com", :password => "qwe123")
+    user1.save!
+    
+    user2 = User.new(:email => "2@mail.com", :password => "qwe123")
+    user2.save!
+    
+    user1.transfer_and_remove!(user2)
+    
+    User.find_by_id(user2.id).should be_nil
+    Authentication.all.each do |a|
+      a.user.should eq(user1)  
+    end
+    Authentication.count.should eq(2)
+  end
+  
+  it "copies the user's credentials too when if the user to delete was manually created" do
+    old_user = User.new(:email => 'jimbo@jung.com',:password => "123qwe")
+    old_user.authentications.build(:provider => 'manual signup', :uid => 'test')
+    old_user.skip_confirmation!
+    old_user.save!
+    
+    new_user = User.new(:email => 'bob@bob.com')
+    new_user.authentications.build(:provider => 'facebook', :uid => '1234')
+    new_user.skip_confirmation!
+    new_user.save!
+
+    new_user.transfer_and_remove!(old_user)
+    
+    actual = User.find(new_user.id) 
+    
+    actual.email.should eq(old_user.email)
+    actual.name.should eq(old_user.name)
+
+    actual.valid_password?(old_user.password).should be_true
+  end
+
+  it "does not require an email validation when it has a validated invitation" do
+    user = User.create(:email => "heVilello@mail.com", :password => "qwe123", :name => "suzanna")
+    team = Team.create(:name => "coolTeam", :timezone => -4)
+    invited_user = User.create(:email => "inv@mail.com", :password => "qwe123")
+
+    Invitation.create!(:email => invited_user.email, 
+                       :team_id => team.id, 
+                       :user_id => user.id,
+                       :status => "validated")
+    
+    invited_user.confirmation_required?.should eq false
+  end
+
+  require "cancan/matchers"
+  describe "abilities" do
+
+    subject { ability }
+    let(:ability){ Ability.new(user) }
+
+    context "a pivotal user tries to create a progress manually in a pivotal sprint" do
+      let(:user){ PivotalUser.create!(:email => 'team_leader@team.com', :password => 'password', :integration_id => nil) }
+      let(:other_user){ PivotalUser.create!(:email => 'other_user@team.com', :password => 'password', :integration_id => nil) }
+
+      it "should be able to" do
+        team = PivotalTeam.create!(:name => "coolTeam", :timezone => -4)
+        teammate = Teammate.create!(:user_id => user.id, :team_id => team.id)
+        pivotal_sprint = PivotalSprint.new(:start_date => Date.new, :duration => 5, :include_weekend => true, :name => "Sprint Name", :total_points => 100, :is_private => true)
+        pivotal_sprint.team_id = team.id
+        pivotal_sprint.save!
+        normal_sprint = Sprint.new(:start_date => Date.new, :duration => 5, :include_weekend => true, :name => "Sprint Name", :total_points => 100)
+        normal_sprint.team_id = team.id
+        normal_sprint.save!
+        
+        normal_progress_pivotal_sprint = Progress.new(:points => 5, :apply_date => normal_sprint.start_date, :description => "desc")
+        normal_progress_pivotal_sprint.sprint_id = pivotal_sprint.id
+        normal_progress_pivotal_sprint.save!
+
+        normal_progress = Progress.new(:points => 5, :apply_date => pivotal_sprint.start_date, :description => "desc")
+        normal_progress.sprint_id = normal_sprint.id
+        normal_progress.save!
+
+        should be_able_to(:create, normal_progress)
+        should_not be_able_to(:create, normal_progress_pivotal_sprint)
+        should be_able_to(:manage, pivotal_sprint)
+      end
+
+      it "handles private wrights correctly" do
+        team = PivotalTeam.create!(:name => "coolTeam", :timezone => -4)
+        teammate = Teammate.create!(:user_id => user.id, :team_id => team.id)
+        pivotal_sprint = PivotalSprint.new(:start_date => Date.new, :duration => 5, :include_weekend => true, :name => "Sprint Name", :total_points => 100, :is_private => true)
+        pivotal_sprint.team_id = team.id
+        pivotal_sprint.save!
+        normal_sprint = Sprint.new(:start_date => Date.new, :duration => 5, :include_weekend => true, :name => "Sprint Name", :total_points => 100)
+        normal_sprint.team_id = team.id
+        normal_sprint.save!
+
+        should be_able_to(:read, pivotal_sprint)
+        random_user = Ability.new other_user
+        random_user.should_not be_able_to(:read, pivotal_sprint)
+        random_user.should be_able_to(:read, normal_sprint)
+      end
+    end
+  end
+end

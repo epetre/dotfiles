@@ -1,0 +1,64 @@
+- content_for :page_title do
+  Pivotal tracker preferences
+
+.span12
+  .span11
+  .span11
+    .span12
+      = form_for(@preference_sheet, url: pivotal_preferences_path, method: :put, :class => 'form-horizontal') do |f|
+        = render :partial => 'shared/errors', :locals => {:resource => @preference_sheet, :resource_name => 'preference sheet'}
+        .control-group 
+          %h4 API
+          .field
+            = f.text_field :integration_id, :placeholder => 'token'
+            %span *Only if you want to sync, otherwise leave blank.
+
+          .field
+            = f.text_field :integration_host, :placeholder => 'pivotal host'
+            %span *Accepted format: www.pivotaltracker.com. Leave blank to use this address.
+
+          -if @preference_sheet.token_valid?
+            .integration_dependent
+              .span12
+              %h4 Sync
+              = f.label(:sync_type, 'Type of sync')
+              = f.select(:sync_type, [['Stories as progression', 1], ['Tasks as progression', 2]], :class => 'input-medium')
+              %a(rel="tooltip" title="You can choose between two types of Sync. We can sync your accepted stories as progressions in the sprint or we can sync every completed tasks in your stories.") ?
+              .control-group 
+                .span12
+                Only sync sprints from the following teams
+                %a(rel="tooltip" title="We will only sync sprints from selected teams. If no team is selected, we will sync the most recent sprints from all your teams.") ?
+                = f.select :team_integration_id_filter, @preference_sheet.available_team_integration_ids, {}, {multiple: 'multiple', style: 'height:180px;width:460px', class: 'multiselect'} 
+        .control-group 
+          = f.submit :class => 'btn btn-success btn-toolbar', value: 'Update'
+
+  .span11
+    %hr
+    -unless @preference_sheet.token_valid?
+      *Insert a valid token to enable all preferences
+    -if @preference_sheet.token_valid?
+      .control-group
+        .span4
+          = button_to('Manual Sync', syncs_url, method: :post, form_class: 'sync', class: 'btn btn-warning' , remote: true, disable_with: 'Syncing...') 
+          %p.sync-status(style='font-size: 18px')
+
+- content_for :js do
+  :javascript
+    $(document).ready(function(){
+      $('.sync').bind('ajax:success', function(){
+        $status_field = $('.sync-status');
+        $status_field.removeClass('error_text');
+        $status_field.addClass('success_text');
+        $status_field.html('done!');
+      }).bind('ajax:error', function(event, xhr, status, errors){
+        $status_field = $('.sync-status');
+        $status_field.removeClass('success_text');
+        $status_field.addClass('error_text');
+        $status_field.html('failed to sync!');
+      }); 
+
+      var submit = $('form.sync input[type=submit]').removeAttr('disabled');
+      $('#preference_sheet_sync_type, #preference_sheet_team_integration_id_filter').change(function(){
+        submit.attr('value', 'Save your changes first').attr('disabled', 'disabled');
+      });
+    });

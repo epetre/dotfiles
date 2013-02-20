@@ -1,0 +1,14 @@
+#section-body
+  %fieldset#page_description
+    %legend
+      - if content_for? :main_tab
+        = yield :main_tab
+      - else
+        = yield :page_title
+    = yield :tabs
+  .tab-content
+    - if content_for? :menu
+      #block-top(style='margin-right: 20px')
+        %ul.thumbnails
+          = yield :menu
+    = yield

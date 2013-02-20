@@ -1,0 +1,46 @@
+class SyncWriter
+  def prepare clone
+    puts "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    user = PivotalUser.includes({:teams => { :sprints => :progresses } })
+      .find(clone.id)
+    begin
+      return sync_children clone, user 
+    rescue Exception => e
+      ex = ExceptionEmail.new(:exception => e, :subject => "Sync writer error", :details => ["On user: #{user.inspect}"] )
+      Notifier.error(ex).deliver
+      return nil
+    end
+  end
+
+  def sync_children clone, record
+    if(clone.class == Sprint)
+      puts "===================================>>>>>>"
+      puts ":::::::::::::::::::::#{clone}"
+    end
+    if clone.has_children? || record.has_children?
+      hash = clone.children.map{|c| [c, record.children.detect{|u| c.integration_id == u.integration_id }] }
+      hash = Hash[*hash.flatten]
+      delete record.children, hash
+      update_insert_and_sync record.children, hash
+    end
+    record
+  end
+
+  def delete children, hash
+    to_remove = children.select{|x| x.delete? && !hash.values.include?(x)}
+    to_remove.each { |r| r.destroy }
+    children.reject!{|c| to_remove.any?{|r| r.id == c.id } }.inspect
+    children
+  end
+
+  def update_insert_and_sync children, hash
+    hash.each do |clone_child, record_child|
+      if record_child.nil?
+        record_child = children.build clone_child.integration_attributes 
+      else
+        record_child.update_syncable_attributes_with clone_child.accessible_attributes 
+      end
+      sync_children clone_child, record_child
+    end
+  end
+end

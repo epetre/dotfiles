@@ -1,0 +1,53 @@
+class SprintProgressValidator < ActiveModel::EachValidator
+  def validate_each(object, attribute, value)
+    if object.is_a? Sprint
+      sprint = object
+      if sprint.is_a? PivotalSprint
+        progresses = sprint.pivotal_progresses.to_a
+      else
+        progresses = sprint.progresses.to_a
+      end
+    elsif object.is_a?(Progress) && object.sprint
+      sprint = object.sprint
+      if sprint.is_a? PivotalSprint
+        progresses = sprint.pivotal_progresses.to_a  
+      else
+        progresses = sprint.progresses.to_a
+      end
+      #when trying to add a progress to a sprint
+      progresses << object if !progresses.include? object
+    end
+
+    validate_progresses(sprint, progresses) do
+      object.errors[attribute] << (options[:message] || error_message)
+    end
+  end
+  
+  def validate_progresses(sprint, progresses, attribute)
+    raise 'method not implemented'
+  end  
+  def error_message
+    raise 'method not implemented'
+  end
+end
+
+class ProgressDateValidator < ActiveModel::EachValidator
+  def validate_each(object, attribute, value)
+    progress = object
+    sprint = object.sprint
+
+    unless sprint.nil? || sprint.days.include?(progress.apply_date)
+      progress.errors[attribute]  << (options[:message] || "is invalid, check that the progress date is within the sprint dates. It can not be in a weekend if the sprint doesn't support it.")
+    end
+  end
+end
+
+class StartDateValidator < ActiveModel::EachValidator
+  def validate_each(object, attribute, value)
+    sprint = object
+
+    unless sprint.days.include? sprint.start_date
+      sprint.errors[attribute]  << (options[:message] || "is invalid, check that the progress dates are within the sprint dates. It cannot be in a weekend if the sprint doesn't support it.")
+    end
+  end
+end

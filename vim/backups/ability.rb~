@@ -1,0 +1,69 @@
+class Ability
+  include CanCan::Ability
+  # we have to be careful about conflicting rights, a cannot :manage will override a can :read or :write if it's written after it.
+  # adding unit tests to handle the right is starting to feel right.
+  def initialize(user)
+    alias_action :print, :to => :read
+    anonymous(user) do
+      cannot :manage, [Team, Sprint, Progress, ClientError, Invitation] 
+    end
+
+    authenticated(user) do
+      can(:manage, User) { |u| u.new_record? || u.id == user.id }
+      can(:manage, Team) { |team| team.new_record? || user.teams.include?(team) }
+      can(:remove_user, Team) { |team| user.teams.include? team }
+      can(:manage, Sprint) { |s| can_manage_sprint user, s }
+      can(:manage, Progress) { |p| can_manage_progress user, p }
+      
+      can(:update, Invitation){|i| user.email.downcase == i.email.downcase }
+      can(:create, Invitation) { |i| user.teams.map{|t| t.id }.include?(i.team_id) }
+      can([:resend, :destroy], Invitation) { |i| user.teams.map{|t| t.id }.include?(i.team_id) }
+      can :update, Subscription do |s|
+        s.user_id == user.id
+      end
+    end
+
+    admin(user) do
+      can :manage, [Feedback, Report, ClientError]
+    end
+
+    pivotal(user) do
+      can :manage, Sync
+      can :manage, PreferenceSheet do |sheet|
+        (sheet.new_record? || sheet.user_id == user.id)
+      end
+    end
+
+    can :create, [Feedback, ClientError]
+    can :read, [Team, Invitation]
+    can(:read, Sprint) { |s| can_read_sprint user, s }
+    can(:read, Progress) { |p| can_read_sprint user, p.sprint }    
+  end
+  
+  def anonymous user 
+    yield if user.nil?
+  end
+  def admin user
+    yield user unless user.nil? || !user.admin?
+  end
+  def authenticated user
+    yield user unless user.nil?
+  end
+  def pivotal user
+    yield user unless user.nil? || !user.kind_of?(PivotalUser)
+  end
+
+  def can_read_sprint user, sprint
+    if user && sprint.is_private
+      user.teams.map{|t| t.id }.include? sprint.team_id
+    else
+      true 
+    end
+  end
+  def can_manage_progress user, progress
+    !progress.sprint.kind_of?(PivotalSprint) && user.teams.map{|t| t.id }.include?(progress.sprint.team_id) 
+  end
+  def can_manage_sprint user, sprint
+    user.teams.map{|t| t.id }.include?(sprint.team_id)
+  end
+end

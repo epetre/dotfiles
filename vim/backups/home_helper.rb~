@@ -1,0 +1,24 @@
+module HomeHelper
+  #alright big fat hack to make the popup work
+  def brand_new_account?
+    got_notification = current_user.notifications.any?{|n| n.name == 'first-login' } 
+    unless got_notification
+      current_user.notifications << Notification.new(:name => 'first-login') 
+      current_user.save!
+    end
+    !got_notification
+  end
+
+  def new_pivotal_tracker_user?
+    send_notification = current_user.is_a?(PivotalUser) && current_user.preference_sheet.integration_id.blank?
+    if send_notification
+      send_notification = !current_user.notifications.any?{|n| n.name == 'first-pivotal'} 
+    end 
+
+    if send_notification
+      current_user.notifications << Notification.new(:name => 'first-pivotal') 
+      current_user.save!
+    end
+    send_notification
+  end
+end

@@ -1,0 +1,21 @@
+require 'sprint_progress_validator'
+class SprintDaysValidator < SprintProgressValidator
+  def validate_progresses(sprint, progresses)
+    return if progresses.nil? || !progresses.respond_to?('to_a') || !sprint.respond_to?('days')
+    return if sprint.start_date.nil? || progresses.any?{|p| p.apply_date.nil? }
+    
+    unless start_date_inside(sprint) && inside_sprint(sprint, progresses)
+      yield
+    end
+  end
+  
+  def error_message
+    "is invalid. Start date and progress dates must be within the sprint dates. The progress can not be during a weekend if the sprint doesn't support it."
+  end
+  def start_date_inside sprint
+    sprint.days.include?(sprint.start_date.to_date)
+  end
+  def inside_sprint sprint, progresses
+    progresses.all?{ |p| sprint.days.include?(p.apply_date.to_date) }
+  end
+end
