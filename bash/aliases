@@ -15,6 +15,7 @@ alias hmoff='heroku maintenance:off'
 #rails
 alias sublime='sublime_text'
 alias rs='rails server'
+alias rsu='unicorn_rails -p 3000'
 alias ss='./script/server'
 alias sg='./script/generate'
 alias rg='rails generate' 

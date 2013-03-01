@@ -1,7 +1,0 @@
-class PreferenceSheetValidator < ActiveModel::Validator
-  def validate(sheet)
-    unless sheet.integration_id.blank? || sheet.token_valid?
-      sheet.errors[:token] << "#{sheet.integration_id} is invalid or failed to connect to host: #{sheet.integration_host}."
-    end
-  end
-end

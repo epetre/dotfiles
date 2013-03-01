@@ -1,9 +1,0 @@
-let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =7
-let g:netrw_dirhist_1='/home/emanuel/rails4app'
-let g:netrw_dirhist_2='/home/emanuel/trackman'
-let g:netrw_dirhist_3='/home/emanuel/Burndown-charts'
-let g:netrw_dirhist_4='/home/emanuel/browser-addons'
-let g:netrw_dirhist_5='/home/emanuel/Burndown-charts'
-let g:netrw_dirhist_6='/home/emanuel'
-let g:netrw_dirhist_7='/home/emanuel/Burndown-charts'

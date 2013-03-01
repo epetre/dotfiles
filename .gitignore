@@ -1,2 +1,14 @@
 secret_env
 .DS_Store
+vim/tmp
+vim/tmp/**
+vim/backups
+vim/backups/**
+*.orig
+.config
+*.swp
+*.swo
+tags
+.config-store
+.DS_Store
+*~
