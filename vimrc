@@ -10,6 +10,8 @@ set hlsearch
 set incsearch
 
 :hi Normal ctermbg=NONE
+:hi NonText ctermbg=NONE
+:hi LineNr ctermbg=NONE
 
 set autoindent
 set expandtab
