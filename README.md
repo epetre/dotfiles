@@ -8,5 +8,5 @@ path_to_dotfiles_folder/bash/secret_env
 * vim  
 
 
-ln -sf ~/path/to/dotfiles/.vimrc ~/.vimrc 
+ln -sf ~/path/to/dotfiles/.vimrc ~/.vimrc  
 ln -s ~/path/to/dofiles/vim ~/.vim
