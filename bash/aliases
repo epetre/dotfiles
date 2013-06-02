@@ -1,5 +1,4 @@
-
-PATH=$PATH:/usr/lib/Sublime\ Text\ 2/
+PATH=$PATH:/usr/lib/Sublime\ Text\ 2
 #utilities
 alias z='zeus'
 alias zs='rm -f .zeus.sock && z start'
@@ -22,6 +21,8 @@ alias rg='rails generate'
 alias r='bundle exec rake'
 alias rr='rake release'
 alias rdm='bundle exec rake db:migrate && bundle exec rake db:test:prepare'
+alias rdr='bundle exec rake db:reset'
+alias rdrb='bundle exec rake db:rollback'
 alias rc='rails console'
 alias z='zeus'
 
@@ -49,7 +50,7 @@ alias la='ls -A'
 alias l='ls -CF'
 
 # git
-alias g="git status"
+alias gs="git status"
 alias gl='git smart-log -n 10'
 alias gpl='git smart-pull'
 alias gps='git push'
@@ -58,11 +59,11 @@ alias gc='git commit'
 alias gch='git checkout'
 alias ga='git add'
 alias gb='git branch'
-alias gs='git stash'
+alias gst='git stash'
 alias gsp='git stash pop'
 alias gm='git merge'
 alias gr='git rebase'
 
 alias ..='cd ..'
-alias sh="show_history"
+alias shh="show_history"
 alias ea="edit_alias"

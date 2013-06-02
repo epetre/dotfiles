@@ -25,6 +25,12 @@ if has("autocmd")
 endif
 let mapleader = ","
 nmap <leader>v :tabedit $MYVIMRC<CR>
+nmap <leader>r :RunSpec<cr>
+nmap <leader>l :RunSpecLine<cr>
+
+let g:slimv_repl_split = 4 " Vertical right split buffer for output
+let g:slimv_leader = "," " Set map leader to comma
+let g:slimv_keybindings = 2 " 2 letters keybindings
 
 " Visual
 set showmatch  " Show matching brackets.

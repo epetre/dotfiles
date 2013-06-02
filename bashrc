@@ -16,3 +16,4 @@ then
 fi 
 source $DIR/bash/config
 source $DIR/bash/aliases
+export PATH=/usr/local/share/npm/bin:$PATH
