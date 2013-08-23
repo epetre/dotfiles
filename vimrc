@@ -22,6 +22,8 @@ set softtabstop=2
 " Source the vimrc file after saving it
 if has("autocmd")
   autocmd! bufwritepost .vimrc source $MYVIMRC
+  autocmd InsertEnter * :set number
+  autocmd InsertLeave * :set relativenumber
 endif
 let mapleader = ","
 nmap <leader>v :tabedit $MYVIMRC<CR>

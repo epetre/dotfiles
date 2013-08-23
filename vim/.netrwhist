@@ -1,5 +1,6 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =3
-let g:netrw_dirhist_1='/Users/emanuelpetre/insight'
-let g:netrw_dirhist_2='/Users/emanuelpetre'
-let g:netrw_dirhist_3='/Users/emanuelpetre/insight'
+let g:netrw_dirhist_cnt =4
+let g:netrw_dirhist_1='/Users/emanuelpetre/Burndown-charts'
+let g:netrw_dirhist_2='/Users/emanuelpetre/insight'
+let g:netrw_dirhist_3='/Users/emanuelpetre/Burndown-charts'
+let g:netrw_dirhist_4='/Users/emanuelpetre/insight'

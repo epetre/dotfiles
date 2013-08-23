@@ -3,24 +3,26 @@ require 'mechanize'
 require "highline/import"
 
 if ARGV.any? { |a| a == '--help' }
-  puts "Write a name to search. Ex: torrefaction \"Dexter s04e01-12\""
+  puts "Write a name to search. Ex: torrefaction Dexter s04e01-12"
   puts "It will list the most seed for each."
   puts "You get to choose which one you want and then it starts the download"
   exit
 end
+
 def get_torrents(page, query)
   result = page.form { |form| form.q = query }.submit
   result.search('#searchResult tr').drop(1).map do |tr|
-    name = tr.css('td:nth-child(2) .detName').text.strip
-    seeder = tr.css('td:nth-child(3)').text.to_i
-    magnet = tr.css('td:nth-child(2) > a:first').first.attributes['href'].value
+    name = tr.css('td')[1].css('.detName').text.strip
+    seeder = tr.css('td')[2].text.to_i
+    magnet = tr.css('td')[1].css('> a:first').first.attributes['href'].value
     
     {name: name, seed: seeder, magnet: magnet}
   end
 end
 
-def parse(arg)
-  if arg.include? '-'
+def parse args
+  arg = args.join ' '
+  if arg =~ /\d+\-\d+/
     sequence = arg.match(/\d+\-\d+/)[0]
       .split('-')
       .select{|x| x.to_i }
@@ -46,11 +48,12 @@ end
 
 @download = []
 @agent.get('http://www.thepiratebay.se') do |page|  
-  args = ARGV.map{|a| parse(a) }.flatten
+  args = parse ARGV
   args.each do |a|
     torrents = get_torrents(page, a)
       .sort_by{|t| t[:seed]}
       .reverse
+      .take(10)
 
     if torrents.any?
       puts "--------------------------"
