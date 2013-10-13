@@ -1,6 +1,9 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =4
+let g:netrw_dirhist_cnt =7
 let g:netrw_dirhist_1='/Users/emanuelpetre/Burndown-charts'
 let g:netrw_dirhist_2='/Users/emanuelpetre/insight'
 let g:netrw_dirhist_3='/Users/emanuelpetre/Burndown-charts'
 let g:netrw_dirhist_4='/Users/emanuelpetre/insight'
+let g:netrw_dirhist_5='/Users/emanuelpetre/Desktop/google plus'
+let g:netrw_dirhist_6='/Users/emanuelpetre/insight'
+let g:netrw_dirhist_7='/Users/emanuelpetre/batman'
